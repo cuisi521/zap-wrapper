@@ -1,0 +1,18 @@
+.DS_Store
+.DS_Store?
+/bin
+
+# Editor directories and files
+.idea
+.zed
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# Test binary, built with `go test -c`
+*.test
+
+# Go workspace file
+go.work
