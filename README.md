@@ -25,7 +25,66 @@ go get github.com/cuisi521/zap-wrapper
 
 ## 基本用法
 
-### 最简单的用法
+### 使用全局日志器（推荐）
+
+全局日志器是最简便的使用方式，只需初始化一次，然后在代码的任何地方都可以直接使用。
+
+```go
+import (
+    "github.com/cuisi521/zap-wrapper/logger"
+)
+
+func main() {
+    // 初始化全局日志器（只需调用一次）
+    _, err := logger.NewDefault()
+    if err != nil {
+        panic(err)
+    }
+    defer logger.Sync() // 确保所有日志都被写入
+    
+    // 在任何地方直接使用全局日志方法
+    logger.Info("这是一条信息日志")
+    logger.Errorf("这是一条错误日志，错误码: %d", 500)
+    logger.Warn("警告信息")
+    logger.Debug("调试信息")
+}
+```
+
+### 自定义配置的全局日志器
+
+```go
+import (
+    "github.com/cuisi521/zap-wrapper/logger"
+)
+
+func main() {
+    // 初始化自定义配置的全局日志器
+    _, err := logger.New(
+        logger.WithLevel(logger.DebugLevel),
+        logger.WithEncoding(logger.ConsoleEncoding),
+        logger.WithOutputPath("logs/app.log"),
+        logger.WithErrorPath("logs/error.log"),
+        logger.WithConsoleOutput(true),
+        logger.WithAsyncMode(true),
+        logger.WithFileRotation(100, 10, 7, true), // 100MB, 保留10个备份，7天，启用压缩
+    )
+    if err != nil {
+        panic(err)
+    }
+    defer logger.Sync() // 全局同步函数
+    
+    // 直接使用全局日志方法
+    logger.Debug("调试信息")
+    logger.Info("普通信息")
+    logger.Warn("警告信息")
+    logger.Error("错误信息")
+    logger.Infof("带参数的信息: %s, %d", "测试", 123)
+}
+```
+
+### 传统实例方式（备用）
+
+如果你需要在不同地方使用不同配置的日志器，可以使用传统的实例方式：
 
 ```go
 import (
@@ -38,49 +97,20 @@ func main() {
     if err != nil {
         panic(err)
     }
-    defer log.Sync() // 确保所有日志都被写入
+    defer log.Sync()
     
-    // 使用日志
+    // 使用日志实例
     log.Info("这是一条信息日志")
     log.Errorf("这是一条错误日志，错误码: %d", 500)
 }
 ```
-
-### 自定义配置
-
-```go
-import (
-    "github.com/cuisi521/zap-wrapper/logger"
-)
-
-func main() {
-    // 创建自定义日志实例
-    log, err := logger.New(
-        logger.WithLevel(logger.DebugLevel),
-        logger.WithEncoding(logger.ConsoleEncoding),
-        logger.WithOutputPath("logs/app.log"),
-        logger.WithErrorPath("logs/error.log"),
-        logger.WithConsoleOutput(true),
-        logger.WithAsyncMode(true),
-        logger.WithFileRotation(100, 10, 7, true), // 100MB, 保留10个备份，7天，启用压缩
-    )
-    if err != nil {
-        panic(err)
-    }
-    defer log.Sync()
-    
-    log.Debug("调试信息")
-    log.Info("普通信息")
-    log.Warn("警告信息")
-    log.Error("错误信息")
-}
 ```
 
 ## 高级特性
 
 ### 日志级别分离
 
-可以为每个日志级别配置单独的输出文件：
+可以为每个日志级别配置单独的输出文件，初始化后直接使用全局日志方法：
 
 ```go
 import (
@@ -88,24 +118,29 @@ import (
 )
 
 func main() {
-    // 方式一：使用BasePath自动生成各级别文件
-    levelLogger, err := logger.New(
+    // 初始化时配置日志级别分离
+    _, err := logger.New(
         logger.WithLevel(logger.DebugLevel),
         logger.WithEncoding(logger.ConsoleEncoding),
         logger.WithBasePath("logs"), // 会自动生成 logs/debug.log, logs/info.log 等文件
         logger.WithConsoleOutput(true),
     )
+    if err != nil {
+        panic(err)
+    }
+    defer logger.Sync()
     
-    // 方式二：手动指定每个级别的文件路径
-    levelLogger, err := logger.New(
-        logger.WithLevel(logger.DebugLevel),
-        logger.WithDebugPath("logs/custom_debug.log"),
-        logger.WithInfoPath("logs/custom_info.log"),
-        logger.WithWarnPath("logs/custom_warn.log"),
-        logger.WithErrorLPath("logs/custom_error.log"),
-        logger.WithPanicPath("logs/custom_panic.log"),
-        logger.WithFatalPath("logs/custom_fatal.log"),
-    )
+    // 直接使用全局日志方法，日志会自动写入到对应的级别文件
+    logger.Debug("这条日志会写入debug.log")
+    logger.Info("这条日志会写入info.log")
+    logger.Warn("这条日志会写入warn.log")
+    logger.Error("这条日志会写入error_l.log")
+}
+
+// 另一个函数中直接使用
+func anotherFunction() {
+    // 无需再次初始化，直接使用
+    logger.Info("在另一个函数中使用全局日志")
 }
 ```
 
@@ -119,16 +154,20 @@ import (
 )
 
 func main() {
-    // 启用异步日志模式
-    asyncLogger, err := logger.New(
+    // 初始化时启用异步日志模式
+    _, err := logger.New(
         logger.WithAsyncMode(true),
         logger.WithOutputPath("logs/app.log"),
+        logger.WithLevel(logger.InfoLevel),
     )
-    defer asyncLogger.Sync() // 重要：确保异步日志都被写入
+    if err != nil {
+        panic(err)
+    }
+    defer logger.Sync() // 重要：确保异步日志都被写入
     
     // 即使在高并发情况下也能高效处理
     for i := 0; i < 100000; i++ {
-        asyncLogger.Infof("处理请求 %d", i)
+        logger.Infof("处理请求 %d", i) // 直接使用全局方法
     }
 }
 ```
@@ -144,50 +183,93 @@ import (
 )
 
 func main() {
-    log, _ := logger.New()
-    
-    // 添加结构化字段
-    userLog := log.With(
-        zap.String("user_id", "123456"),
-        zap.String("username", "张三"),
+    // 初始化全局日志器
+    _, _ = logger.New(
+        logger.WithLevel(logger.InfoLevel),
+        logger.WithEncoding(logger.JSONEncoding), // JSON格式更适合结构化日志
     )
     
-    userLog.Info("用户登录成功", zap.String("ip", "192.168.1.1"))
-    // 输出: {"level":"info","user_id":"123456","username":"张三","ip":"192.168.1.1","message":"用户登录成功"}
+    // 全局添加结构化字段
+    logger.Info("用户登录成功", 
+        zap.String("user_id", "123456"),
+        zap.String("username", "张三"),
+        zap.String("ip", "192.168.1.1"),
+        zap.Int("status_code", 200),
+    )
+    
+    // 输出: {"level":"info","user_id":"123456","username":"张三","ip":"192.168.1.1","status_code":200,"message":"用户登录成功"}
+}
+
+// 创建带上下文的日志实例
+func processUserRequest(userID string, username string) {
+    // 创建带有用户信息的日志实例
+    userLogger := logger.With(
+        zap.String("user_id", userID),
+        zap.String("username", username),
+    )
+    
+    // 使用带上下文的日志实例
+    userLogger.Info("开始处理用户请求")
+    // 处理逻辑...
+    userLogger.Info("用户请求处理完成")
 }
 ```
 
 ## API 概述
 
-### 日志级别
+### 全局日志函数（推荐使用）
 
-- `Debug/Debugf`: 调试信息
-- `Info/Infof`: 普通信息
-- `Warn/Warnf`: 警告信息
-- `Error/Errorf`: 错误信息
-- `Panic/Panicf`: 导致应用中断的严重错误
-- `Fatal/Fatalf`: 致命错误，记录后程序退出
+#### 日志级别函数
+
+- **logger.Debug(msg string, fields ...zap.Field)** - 全局Debug级别日志
+- **logger.Debugf(format string, args ...interface{})** - 格式化的全局Debug级别日志
+- **logger.Info(msg string, fields ...zap.Field)** - 全局Info级别日志
+- **logger.Infof(format string, args ...interface{})** - 格式化的全局Info级别日志
+- **logger.Warn(msg string, fields ...zap.Field)** - 全局Warn级别日志
+- **logger.Warnf(format string, args ...interface{})** - 格式化的全局Warn级别日志
+- **logger.Error(msg string, fields ...zap.Field)** - 全局Error级别日志
+- **logger.Errorf(format string, args ...interface{})** - 格式化的全局Error级别日志
+- **logger.Panic(msg string, fields ...zap.Field)** - 全局Panic级别日志（会导致程序中断）
+- **logger.Panicf(format string, args ...interface{})** - 格式化的全局Panic级别日志
+- **logger.Fatal(msg string, fields ...zap.Field)** - 全局Fatal级别日志（记录后程序退出）
+- **logger.Fatalf(format string, args ...interface{})** - 格式化的全局Fatal级别日志
+
+#### 全局辅助函数
+
+- **logger.With(fields ...zap.Field)** - 创建带有结构化字段的日志实例
+- **logger.Sync()** - 同步全局日志器，将缓冲区内容写入磁盘
+- **logger.L()** - 获取全局日志器实例
+
+### 日志器初始化函数
+
+- **logger.New(options ...Option)** - 创建日志器实例并设置为全局日志器
+- **logger.NewDefault()** - 创建默认配置的日志器实例并设置为全局日志器
+- **logger.InitGlobal(options ...Option)** - 仅初始化全局日志器，不返回实例
 
 ### 配置选项
 
-- `WithLevel(level)`: 设置日志级别
-- `WithEncoding(encoding)`: 设置输出格式（JSON/Console）
-- `WithOutputPath(path)`: 设置日志输出路径
-- `WithErrorPath(path)`: 设置错误日志路径
-- `WithBasePath(path)`: 设置基础路径，自动生成各级别日志文件
-- `WithDebugPath/InfoPath/WarnPath/ErrorLPath/PanicPath/FatalPath`: 设置各等级日志路径
-- `WithFileRotation(maxSize, maxBackups, maxAge, compress)`: 配置文件轮转
-- `WithCaller(show)`: 是否显示调用者信息
-- `WithStacktrace(enable)`: 是否启用堆栈跟踪
-- `WithDevelopment(dev)`: 是否启用开发模式
-- `WithAsyncMode(async)`: 是否启用异步日志
-- `WithConsoleOutput(enable)`: 是否输出到控制台
+- **logger.WithLevel(level)** - 设置日志级别（DebugLevel, InfoLevel, WarnLevel, ErrorLevel等）
+- **logger.WithEncoding(encoding)** - 设置输出格式（JSONEncoding 或 ConsoleEncoding）
+- **logger.WithOutputPath(path)** - 设置主日志输出路径
+- **logger.WithErrorPath(path)** - 设置错误日志路径
+- **logger.WithBasePath(path)** - 设置基础路径，自动生成各级别日志文件
+- **logger.WithDebugPath/InfoPath/WarnPath/ErrorLPath/PanicPath/FatalPath(path)** - 设置特定级别日志路径
+- **logger.WithFileRotation(maxSize, maxBackups, maxAge, compress)** - 配置文件轮转参数
+- **logger.WithCaller(show)** - 是否显示调用者信息
+- **logger.WithStacktrace(enable)** - 是否启用堆栈跟踪
+- **logger.WithDevelopment(dev)** - 是否启用开发模式
+- **logger.WithAsyncMode(async)** - 是否启用异步日志模式
+- **logger.WithConsoleOutput(enable)** - 是否同时输出到控制台
 
-### 其他方法
+### 实例方法（传统方式）
 
-- `With(fields...)`: 添加结构化字段
-- `Sync()`: 刷新日志缓冲区到磁盘
-- `GetZapLogger()`: 获取原始zap logger实例（用于高级用法）
+如果使用日志实例而不是全局函数，以下是可用的实例方法：
+
+- **log.Debug/Info/Warn/Error/Panic/Fatal** - 实例日志方法
+- **log.Debugf/Infof/Warnf/Errorf/Panicf/Fatalf** - 实例格式化日志方法
+- **log.With(fields...)** - 为实例添加结构化字段
+- **log.Sync()** - 同步实例日志缓冲区
+- **log.GetZapLogger()** - 获取原始zap logger实例（高级用法）
 
 ## 注意事项
 

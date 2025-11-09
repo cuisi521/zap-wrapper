@@ -3,8 +3,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -12,10 +10,10 @@ import (
 )
 
 func main() {
-	fmt.Println("========== 日志级别分离功能测试 ==========")
+	fmt.Println("========== 全局日志功能测试 ==========")
 
-	// 创建日志器，为每个级别配置单独的日志文件
-	levelLogger, err := logger.New(
+	// 创建日志器，同时会自动设置为全局日志器
+	_, err := logger.New(
 		// logger.WithAsyncMode(true), // 启用异步
 		logger.WithLevel(logger.DebugLevel),
 		logger.WithEncoding(logger.ConsoleEncoding),
@@ -28,22 +26,38 @@ func main() {
 		return
 	}
 
+	// 使用全局Sync函数确保所有日志都被写入
 	defer func() {
-		if err := levelLogger.Sync(); err != nil {
+		if err := logger.Sync(); err != nil {
 			fmt.Printf("Sync失败: %v\n", err)
 		}
 	}()
 
-	// 执行异步日志测试
-	// testAsyncLogging()
+	// 现在可以直接使用全局日志方法
+	fmt.Println("\n使用全局日志方法...")
+	logger.Debug("这是全局debug级别日志")
+	logger.Info("这是全局info级别日志")
+	logger.Warn("这是全局warn级别日志")
+	logger.Error("这是全局error级别日志")
 
-	// 输出不同级别的日志
-	fmt.Println("\n写入不同级别的日志...")
-	for i := 0; i < 1000000; i++ {
-		levelLogger.Debugf("这是debug级别的日志 %d", i)
-		levelLogger.Infof("这是info级别的日志 %d", i)
-		levelLogger.Warnf("这是warn级别的日志 %d", i)
-		levelLogger.Errorf("这是error级别的日志 %d", i)
+	// 使用格式化日志方法
+	logger.Infof("这是带参数的全局info日志，ID: %s, 名称: %s", "12345", "测试用户")
+	logger.Errorf("这是带参数的全局error日志，错误码: %d, 错误信息: %s", 500, "服务器内部错误")
+
+	// 结构化日志示例
+	logger.Info("用户登录成功",
+		zap.String("user_id", "1001"),
+		zap.String("username", "张三"),
+		zap.String("ip", "192.168.1.100"),
+	)
+
+	// 示例: 输出少量测试日志
+	fmt.Println("\n写入少量测试日志...")
+	for i := 0; i < 10; i++ {
+		logger.Debugf("这是debug级别的日志 %d", i)
+		logger.Infof("这是info级别的日志 %d", i)
+		logger.Warnf("这是warn级别的日志 %d", i)
+		logger.Errorf("这是error级别的日志 %d", i)
 	}
 
 	fmt.Println("\n日志写入完成！")
@@ -87,121 +101,4 @@ func testStrictLevelLogging() {
 	fmt.Println("[严格日志级别分离测试] 日志写入完成")
 	fmt.Println("[严格日志级别分离测试] 请查看 bin/logs/ 目录下的 strict_*.log 文件验证")
 	fmt.Println("[严格日志级别分离测试] 完成")
-}
-
-// 验证日志文件内容，确保只包含指定级别的日志
-func verifyLogFile(filePath string, expectedLevel string) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		fmt.Printf("Error reading %s: %v\n", filePath, err)
-		return
-	}
-
-	lines := strings.Split(string(content), "\n")
-	fmt.Printf("%s contains %d lines\n", filePath, len(lines)-1)
-
-	// 检查文件中的每一行是否只包含期望的级别
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		if !strings.Contains(line, expectedLevel) {
-			fmt.Printf("Warning: %s contains non-%s level log: %s\n", filePath, expectedLevel, line)
-		}
-	}
-}
-
-func testErrorScenarios() {
-	// 测试空日志器情况
-	var nilLogger *logger.Logger
-	// 这应该不会panic，因为我们添加了安全检查
-	if nilLogger != nil {
-		nilLogger.Info("This should not panic")
-	}
-
-	fmt.Println("All tests completed successfully")
-}
-
-// 测试基础路径配置功能 - 使用新的WithBasePath选项
-func testBasePathLogging() {
-	fmt.Println("\n========== 基础路径配置测试 ==========")
-
-	// 清理基础路径日志文件
-	os.Remove("./logs/debug.log")
-	os.Remove("./logs/info.log")
-	os.Remove("./logs/warn.log")
-	os.Remove("./logs/error.log")
-
-	// 初始化日志 - 使用简化的基础路径配置方式
-	basePathLogger, err := logger.New(
-		// logger.WithAsyncMode(true), // 启用异步
-		logger.WithLevel(logger.DebugLevel),
-		// 只需指定基础日志路径，系统会自动在该路径下创建各级别日志文件
-		// 例如：./logs/debug.log, ./logs/info.log, ./logs/warn.log, ./logs/error.log 等
-		logger.WithBasePath("./logs"),
-	)
-	if err != nil {
-		fmt.Printf("Failed to initialize logger: %v\n", err)
-		return
-	}
-
-	defer func() {
-		if err := basePathLogger.Sync(); err != nil {
-			fmt.Printf("BasePath logger sync failed: %v\n", err)
-		}
-	}()
-
-	// 输出不同级别的日志
-	fmt.Println("Writing logs with base path configuration...")
-	basePathLogger.Debug("这是使用基础路径配置的debug日志")
-	basePathLogger.Info("这是使用基础路径配置的info日志")
-	basePathLogger.Warn("这是使用基础路径配置的warn日志")
-	basePathLogger.Error("这是使用基础路径配置的error日志")
-
-	fmt.Println("基础路径配置日志写入完成！")
-	fmt.Println("请查看 ./logs/ 目录下的日志文件，验证各日志级别是否正确输出")
-	fmt.Println("基础路径配置可以简化多级别日志的配置，只需指定一个基础路径")
-}
-
-// 测试异步日志功能
-func testAsyncLogging() {
-	fmt.Println("\n========== 异步日志功能测试 ==========")
-
-	// 创建异步日志器
-	asyncLogger, err := logger.New(
-		logger.WithLevel(logger.DebugLevel),
-		logger.WithEncoding(logger.ConsoleEncoding),
-		// logger.WithDebugPath("bin/logs/async_debug.log"),
-		// logger.WithInfoPath("bin/logs/async_info.log"),
-		// logger.WithWarnPath("bin/logs/async_warn.log"),
-		// logger.WithErrorLPath("bin/logs/async_error.log"),
-		logger.WithBasePath("bin/logs"),
-		logger.WithAsyncMode(true), // 启用异步模式
-	)
-
-	if err != nil {
-		fmt.Printf("创建异步日志器失败: %v\n", err)
-		return
-	}
-
-	defer func() {
-		if err := asyncLogger.Sync(); err != nil {
-			fmt.Printf("异步日志Sync失败: %v\n", err)
-		}
-	}()
-
-	// 输出不同级别的异步日志
-	fmt.Println("写入异步日志...")
-	for i := 0; i < 100; i++ {
-		asyncLogger.Debug("这是异步模式的debug日志", zap.Int("index", i))
-		asyncLogger.Info("这是异步模式的info日志", zap.Int("index", i))
-		if i%10 == 0 {
-			asyncLogger.Warn("这是异步模式的warn日志", zap.Int("index", i))
-			asyncLogger.Error("这是异步模式的error日志", zap.Int("index", i))
-		}
-	}
-
-	fmt.Println("异步日志写入完成！")
-	fmt.Println("请查看 bin/logs/ 目录下的 async_*.log 文件，验证异步日志输出")
-	fmt.Println("异步模式可以提高日志写入性能，但请注意确保调用Sync()来刷新缓冲区")
 }

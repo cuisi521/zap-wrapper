@@ -16,7 +16,7 @@ type Logger struct {
 	config    *Config
 }
 
-// New 创建新的日志实例
+// New 创建新的日志实例，并设置为全局日志器
 func New(options ...Option) (*Logger, error) {
 	config := &Config{
 		Level:         DefaultLevel,
@@ -175,10 +175,17 @@ func New(options ...Option) (*Logger, error) {
 		zapLogger = baseLogger
 	}
 
-	return &Logger{
+	logger := &Logger{
 		zapLogger: zapLogger,
 		config:    config,
-	}, nil
+	}
+	
+	// 设置为全局日志器
+	globalMutex.Lock()
+	globalLogger = logger
+	globalMutex.Unlock()
+	
+	return logger, nil
 }
 
 // NewDefault 创建默认日志实例
