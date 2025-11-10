@@ -19,6 +19,9 @@ func main() {
 		logger.WithEncoding(logger.ConsoleEncoding),
 		logger.WithBasePath("bin/logs"),
 		logger.WithConsoleOutput(true), // 启用控制台输出
+		logger.WithCaller(true),        // 显示调用者信息
+		logger.WithStacktrace(true),    // 显示堆栈跟踪
+
 	)
 
 	if err != nil {

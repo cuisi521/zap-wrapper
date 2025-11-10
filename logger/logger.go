@@ -86,6 +86,7 @@ func New(options ...Option) (*Logger, error) {
 
 	// 创建 encoder
 	encoderConfig := zapConfig.EncoderConfig
+	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder // 确保调用者信息被正确编码
 	encoder := getEncoder(encoderConfig, config.Encoding)
 
 	// 创建 core
@@ -153,7 +154,7 @@ func New(options ...Option) (*Logger, error) {
 	// 添加 caller 信息
 	opts := []zap.Option{}
 	if config.ShowCaller {
-		opts = append(opts, zap.AddCaller())
+		opts = append(opts, zap.AddCaller(), zap.AddCallerSkip(2))
 	}
 
 	// 添加堆栈跟踪
@@ -179,12 +180,12 @@ func New(options ...Option) (*Logger, error) {
 		zapLogger: zapLogger,
 		config:    config,
 	}
-	
+
 	// 设置为全局日志器
 	globalMutex.Lock()
 	globalLogger = logger
 	globalMutex.Unlock()
-	
+
 	return logger, nil
 }
 
