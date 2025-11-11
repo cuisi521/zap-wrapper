@@ -87,6 +87,7 @@ func New(options ...Option) (*Logger, error) {
 	// 创建 encoder
 	encoderConfig := zapConfig.EncoderConfig
 	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder // 确保调用者信息被正确编码
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder  // 添加时间编码配置，使用ISO8601格式
 	encoder := getEncoder(encoderConfig, config.Encoding)
 
 	// 创建 core
