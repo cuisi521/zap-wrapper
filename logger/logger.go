@@ -86,8 +86,19 @@ func New(options ...Option) (*Logger, error) {
 
 	// 创建 encoder
 	encoderConfig := zapConfig.EncoderConfig
+	// 设置编码器配置，确保UTF-8字符正确显示
 	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder // 确保调用者信息被正确编码
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder  // 添加时间编码配置，使用ISO8601格式
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder  // 使用ISO8601格式的时间
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder // 大写的日志级别
+	encoderConfig.EncodeDuration = zapcore.StringDurationEncoder // 字符串格式的持续时间
+	// 设置其他必要的编码器字段，确保中文等UTF-8字符正确格式化
+	encoderConfig.TimeKey = "time"
+	encoderConfig.LevelKey = "level"
+	encoderConfig.NameKey = "logger"
+	encoderConfig.CallerKey = "caller"
+	encoderConfig.FunctionKey = zapcore.OmitKey
+	encoderConfig.MessageKey = "msg"
+	encoderConfig.StacktraceKey = "stacktrace"
 	encoder := getEncoder(encoderConfig, config.Encoding)
 
 	// 创建 core
@@ -242,8 +253,13 @@ func createFileCore(filePath string, encoder zapcore.Encoder, level zapcore.Leve
 
 // getEncoder 获取编码器
 func getEncoder(encoderConfig zapcore.EncoderConfig, encoding Encoding) zapcore.Encoder {
+	// 确保编码器配置支持UTF-8字符
 	switch encoding {
 	case ConsoleEncoding:
+		// 为控制台编码器配置更好的UTF-8支持
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
 		return zapcore.NewConsoleEncoder(encoderConfig)
 	case JSONEncoding:
 		fallthrough
